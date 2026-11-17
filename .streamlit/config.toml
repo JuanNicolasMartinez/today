@@ -1,0 +1,57 @@
+# Configuración de Streamlit (se lee desde el directorio de trabajo: la raíz
+# del repositorio). Los valores del servidor coinciden con el despliegue:
+# Nginx sirve HTTPS y hace proxy a 127.0.0.1:8501.
+
+[server]
+address = "127.0.0.1"
+port = 8501
+headless = true
+enableXsrfProtection = true
+enableCORS = true
+maxUploadSize = 1
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+# Sin trazas en el navegador. En local: STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=full
+showErrorDetails = "none"
+showErrorLinks = false
+
+[ui]
+hideTopBar = true
+
+[runner]
+magicEnabled = false
+
+[logger]
+level = "warning"
+
+[theme]
+# Tablero claro sobre fondo nocturno: blanco, gris niebla, azul noche y pasteles.
+base = "light"
+primaryColor = "#2A2839"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5F3"
+textColor = "#1E1D2A"
+linkColor = "#2A2839"
+linkUnderline = false
+borderColor = "#EAE9EE"
+showWidgetBorder = true
+baseRadius = "14px"
+buttonRadius = "999px"
+font = "Outfit:https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap, sans-serif"
+headingFont = "Outfit, sans-serif"
+codeFont = "DM Mono:https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap, monospace"
+headingFontWeights = 600
+baseFontSize = 15
+redColor = "#C8435A"
+orangeColor = "#D98A4E"
+yellowColor = "#C99A3B"
+greenColor = "#2F8F6B"
+blueColor = "#3A9EA5"
+violetColor = "#7D7397"
+grayColor = "#8E8D99"

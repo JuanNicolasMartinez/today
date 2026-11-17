@@ -1,0 +1,42 @@
+# PROPUESTA para /etc/systemd/system/cyber.service
+#
+# Compárala con la unidad actual antes de reemplazarla. Cambios y motivo:
+#   * EnvironmentFile: la app ahora necesita secretos (conexión del rol de la
+#     app y clave de cifrado de OTP). Viven en /etc/today/today.env, fuera del
+#     repositorio.
+#   * WorkingDirectory en la raíz del clon: Streamlit lee .streamlit/config.toml
+#     del directorio de trabajo (tema, sin barra superior, 127.0.0.1:8501,
+#     sin trazas de error en el navegador).
+#   * `uv run --no-sync`: las dependencias se instalan al desplegar con
+#     `uv sync --frozen --no-dev`; al arrancar no se descarga ni se modifica nada.
+#   * Endurecimiento básico de systemd (sin nuevos privilegios, /tmp privado...).
+#
+# Ajusta la ruta de uv si `command -v uv` (como ubuntu) devuelve otra.
+
+[Unit]
+Description=today · Streamlit en 127.0.0.1:8501 (detrás de Nginx)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Developer/today
+EnvironmentFile=/etc/today/today.env
+ExecStart=/home/ubuntu/.local/bin/uv run --no-sync streamlit run src/web_app/main.py
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

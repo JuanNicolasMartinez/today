@@ -1,17 +1,33 @@
 [project]
 name = "web-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "Registro con Argon2id, TOTP y exportación CSV controlada (Streamlit + PostgreSQL)"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "argon2-cffi>=25.1.0",
+    "cryptography>=50.0.2",
+    "psycopg[binary,pool]>=3.3.9",
+    "pyotp>=2.12.0",
+    "qrcode[pil]>=8.2",
     "requests==2.33.0",
     "streamlit>=1.66.1",
 ]
 
 [project.scripts]
 web-app = "web_app:main"
+today-migrate = "web_app.migrate:main"
+today-admin = "web_app.admin:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
