@@ -39,14 +39,22 @@ REG_PENDING = "_reg_account"
 REG_TTL_S = 15 * 60
 REG_DEMO = "_reg_demo"
 FLASH = "_flash"
+TOAST = "_toast"
+TOAST_SEQ = "_toast_seq"
+TOAST_TONES = ("error", "warn")
 REG_ERRORS = "_reg_errors"
 GENERIC_LOGIN_ERROR = "No pudimos verificar tus datos. Revisa usuario, contraseña y código."
 SERVICE_ERROR = "El servicio no está disponible en este momento. Intenta de nuevo más tarde."
 RESTART_HINT = "Inicia sesión y elige «Configúralo» para obtener un QR nuevo."
 RETYPE_PASSWORD = "Por seguridad, vuelve a escribir la contraseña."
 
+# La fecha de nacimiento se pide en tres listas (día, mes, año): el calendario de
+# st.date_input solo ofrece 20 años a la vez en su lista de años.
+BIRTH_PARTS = ("birth_day", "birth_month", "birth_year")
+MONTHS = ("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+          "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
 DEMO_FIELDS = (
-    "full_name", "document_id", "birth_date", "phone", "city", "blood_type",
+    "full_name", "document_id", *BIRTH_PARTS, "phone", "city", "blood_type",
     "allergies", "chronic_condition", "credit_score", "monthly_income", "outstanding_debt",
 )
 
@@ -64,6 +72,25 @@ REGISTER_STEPS = (
 
 def _flash(message: str, tone: str) -> None:
     st.session_state[FLASH] = (message, tone)
+    if tone in TOAST_TONES:
+        st.session_state[TOAST] = (message, tone)
+
+
+def _toast_errors(errors: dict[str, str]) -> None:
+    """Toast para errores por campo: el mensaje si es uno solo, o cuántos campos revisar."""
+    messages = [m for m in errors.values() if m != RETYPE_PASSWORD] or list(errors.values())
+    if not messages:
+        return
+    text = messages[0] if len(messages) == 1 else f"Revisa los {len(messages)} campos marcados."
+    st.session_state[TOAST] = (text, "error")
+
+
+def _show_toast() -> None:
+    """Muestra el toast pendiente; desaparece en la siguiente ejecución de la página."""
+    item = st.session_state.pop(TOAST, None)
+    if item:
+        n = st.session_state[TOAST_SEQ] = st.session_state.get(TOAST_SEQ, 0) + 1
+        theme.toast(*item, nonce=n)
 
 
 def _show_flash() -> None:
@@ -89,6 +116,19 @@ def _restore_demo() -> None:
     for f, value in (st.session_state.get(REG_DEMO) or {}).items():
         if value is not None:
             st.session_state[f"reg_{f}"] = value
+
+
+def _birth_years() -> list[int]:
+    """Del año en que hoy se cumplen 18 hacia atrás, hasta 1900 (el servidor revisa el día exacto)."""
+    return list(range(dt.date.today().year - 18, 1899, -1))
+
+
+def _birth_date(v: dict) -> dt.date | None:
+    """Une día, mes y año; si falta uno o la fecha no existe (31 de febrero), el servidor la rechaza."""
+    try:
+        return dt.date(int(v["birth_year"]), int(v["birth_month"]), int(v["birth_day"]))
+    except (TypeError, ValueError):
+        return None
 
 
 def _back_to_account(pending: dict, errors: dict[str, str]) -> None:
@@ -193,6 +233,7 @@ def _on_reg_next() -> None:
         if "password" not in errors and "password_confirm" not in errors:
             errors["password"] = RETYPE_PASSWORD
         s[REG_ERRORS] = errors
+        _toast_errors(errors)
         return
     s.pop(REG_ERRORS, None)
     s[REG_PENDING] = {"username": username, "email": email, "password": password, "at": time.time()}
@@ -210,9 +251,12 @@ def _on_reg_back() -> None:
 def _on_fill_demo() -> None:
     fake = fake_registration(random.Random(), random.randint(1, 99))
     s = st.session_state
-    for f in ("full_name", "document_id", "birth_date", "phone", "city", "blood_type",
+    for f in ("full_name", "document_id", "phone", "city", "blood_type",
               "allergies", "chronic_condition", "credit_score"):
         s[f"reg_{f}"] = getattr(fake, f)
+    s["reg_birth_day"] = fake.birth_date.day
+    s["reg_birth_month"] = fake.birth_date.month
+    s["reg_birth_year"] = fake.birth_date.year
     s["reg_monthly_income"] = float(fake.monthly_income)
     s["reg_outstanding_debt"] = float(fake.outstanding_debt)
 
@@ -232,7 +276,7 @@ def _on_register() -> None:
         password=pending["password"], password_confirm=pending["password"],
         **{f: v[f] or "" for f in ("full_name", "document_id", "phone", "city", "blood_type",
                                    "allergies", "chronic_condition")},
-        birth_date=v["birth_date"],
+        birth_date=_birth_date(v),
         credit_score=int(v["credit_score"]) if v["credit_score"] is not None else None,
         monthly_income=v["monthly_income"],
         outstanding_debt=v["outstanding_debt"],
@@ -246,6 +290,7 @@ def _on_register() -> None:
             _back_to_account(pending, {"password": RETYPE_PASSWORD, **account_errors})
         else:
             s[REG_ERRORS] = exc.errors
+        _toast_errors(exc.errors)
         return
     except Exception as exc:
         log.error("event=register_unavailable error=%s", type(exc).__name__)
@@ -412,21 +457,32 @@ def view_demo(pending: dict) -> None:
 
             with st.container(key="grp-peach"):
                 theme.group_title("badge", "Personales", "demo")
-                st.text_input("Nombre completo", key="reg_full_name", max_chars=120, autocomplete="off")
-                _err(errors, "full_name")
+                c1, c2 = st.columns([1.6, 1])
+                with c1:
+                    st.text_input("Nombre completo", key="reg_full_name", max_chars=120, autocomplete="off")
+                    _err(errors, "full_name")
+                with c2:
+                    st.text_input("Ciudad", key="reg_city", max_chars=80, autocomplete="off")
+                    _err(errors, "city")
                 c1, c2 = st.columns(2)
                 with c1:
                     st.text_input("Documento", key="reg_document_id", max_chars=20, autocomplete="off")
                     _err(errors, "document_id")
+                with c2:
                     st.text_input("Teléfono", key="reg_phone", max_chars=20, autocomplete="off",
                                   placeholder="+57 300 000 0000")
                     _err(errors, "phone")
+                c1, c2, c3 = st.columns([0.9, 1.4, 1])
+                with c1:
+                    st.selectbox("Día de nacimiento", range(1, 32), key="reg_birth_day", index=None,
+                                 placeholder="Día")
                 with c2:
-                    st.date_input("Nacimiento", key="reg_birth_date", value=None,
-                                  min_value=dt.date(1900, 1, 1), max_value=dt.date.today(), format="DD/MM/YYYY")
-                    _err(errors, "birth_date")
-                    st.text_input("Ciudad", key="reg_city", max_chars=80, autocomplete="off")
-                    _err(errors, "city")
+                    st.selectbox("Mes", range(1, 13), key="reg_birth_month", index=None,
+                                 placeholder="Mes", format_func=lambda m: MONTHS[m - 1])
+                with c3:
+                    st.selectbox("Año", _birth_years(), key="reg_birth_year", index=None,
+                                 placeholder="Año")
+                _err(errors, "birth_date")
 
             with st.container(key="grp-pink"):
                 theme.group_title("ecg_heart", "Salud", "demo")
@@ -534,3 +590,5 @@ with st.container(key=f"auth-{'enroll' if enroll_uid is not None else view}"):
             st.session_state[VIEW] = "login"
             _flash("La verificación expiró. Vuelve a escribir tus datos.", "warn")
         view_login()
+
+_show_toast()

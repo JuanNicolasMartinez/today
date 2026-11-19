@@ -121,6 +121,23 @@ def notice(message: str, tone: str = "neutral") -> None:
     )
 
 
+def toast(message: str, tone: str = "error", *, nonce: int = 0) -> None:
+    """Aviso flotante arriba a la derecha que se va solo a los 6 s (solo CSS).
+
+    Se pausa al pasar el ratón y se cierra con un clic: es un ``<label>`` con
+    un checkbox oculto, y ``:has(:checked)`` lo saca. ``nonce`` cambia el HTML
+    en cada aviso para que la animación empiece de nuevo aunque el mensaje se
+    repita. ``tone``: error, warn u ok.
+    """
+    glyph = {"ok": "check_circle", "warn": "schedule"}.get(tone, "error")
+    st.html(
+        f'<label class="t-toast t-toast--{esc(tone)}" role="alert" data-n="{int(nonce)}" title="Clic para cerrar">'
+        f'<input type="checkbox" class="t-toast__close" aria-label="Cerrar aviso">'
+        f'{icon(glyph)}<p>{esc(message)}</p>'
+        f'<span class="t-ico t-toast__x" aria-hidden="true">close</span><span class="t-toast__bar"></span></label>'
+    )
+
+
 def field_error(message: str | None) -> None:
     if message:
         st.html(f'<p class="t-field-error" role="alert">{esc(message)}</p>')

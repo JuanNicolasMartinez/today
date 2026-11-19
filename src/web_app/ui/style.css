@@ -97,7 +97,8 @@ footer:not(.t-footer) {
   border-radius: 44px;
   padding: 28px !important;
   box-shadow: 0 50px 90px -50px rgba(0, 0, 0, 0.75);
-  animation: t-shell 0.75s var(--ease) both;
+  /* backwards y no both: al terminar no queda transform, que encerraría al toast fijo. */
+  animation: t-shell 0.75s var(--ease) backwards;
 }
 @keyframes t-shell {
   from { opacity: 0; transform: translateY(22px) scale(0.985); }
@@ -729,6 +730,79 @@ footer:not(.t-footer) {
 .t-notice--warn .t-ico { color: var(--warn); }
 .t-notice--demo { background: var(--peach); animation: t-drop 0.5s var(--spring) both; }
 .t-notice--demo .t-ico { color: var(--navy); }
+
+/* ---------- Toast (errores de los formularios de acceso) -----------------
+   Tarjeta fija arriba a la derecha, al estilo toastr, solo con CSS: entra con
+   resorte, la barra inferior se vacía en 6 s y luego sale. Al pasar el ratón
+   se pausa todo; con un clic (checkbox oculto) se cierra. theme.toast() la emite. */
+[data-testid="stElementContainer"]:has(.t-toast) { position: absolute !important; width: 0 !important; height: 0 !important; }
+.t-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 15px 16px 17px 22px;
+  overflow: hidden;
+  border: 1px solid var(--pink-line);
+  border-radius: 18px;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: 0 22px 44px -20px rgba(30, 29, 42, 0.5), 0 2px 6px rgba(30, 29, 42, 0.06);
+  cursor: pointer;
+  outline: none;
+  animation: t-toast-in 0.55s var(--spring) both, t-shake 0.42s var(--ease) 0.4s, t-toast-out 0.4s var(--ease) 6s forwards;
+}
+.t-toast::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--tone, var(--danger));
+}
+.t-toast p { flex: 1; margin: 0 !important; color: var(--ink) !important; font-size: 0.93rem !important; font-weight: 500; line-height: 1.45; }
+.t-toast .t-ico { font-size: 22px; color: var(--tone, var(--danger)); }
+.t-toast .t-toast__x {
+  font-family: "Material Symbols Rounded";
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  align-self: flex-start;
+  transition: color 0.2s var(--ease);
+}
+.t-toast:hover .t-toast__x { color: var(--ink); }
+.t-toast__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--pink-strong), var(--tone, var(--danger)));
+  transform-origin: left;
+  animation: t-toast-timer 6s linear both;
+}
+.t-toast:hover,
+.t-toast:hover .t-toast__bar { animation-play-state: paused; }
+.t-toast__close { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.t-toast:has(.t-toast__close:focus-visible) { box-shadow: 0 0 0 3px var(--pink-strong), 0 22px 44px -20px rgba(30, 29, 42, 0.5); }
+.t-toast:has(.t-toast__close:checked) { animation: t-toast-out 0.3s var(--ease) forwards; animation-play-state: running; }
+.t-toast--warn { --tone: var(--warn); border-color: #F1D9A8; }
+.t-toast--ok { --tone: var(--ok); border-color: #BFE3D3; }
+@keyframes t-toast-in {
+  from { opacity: 0; transform: translateX(32px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes t-toast-out {
+  to { opacity: 0; transform: translateX(24px); visibility: hidden; }
+}
+@keyframes t-toast-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
 @keyframes t-drop {
   from { opacity: 0; transform: translateY(-8px) scale(0.98); }
   to { opacity: 1; transform: none; }
@@ -1039,6 +1113,10 @@ footer:not(.t-footer) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* El toast sigue visible sus 6 s y sale sin movimiento. */
+  .t-toast { animation: t-toast-out 0.01ms linear 6s forwards !important; animation-delay: 6s !important; }
+  .t-toast:has(.t-toast__close:checked) { animation: t-toast-out 0.01ms linear forwards !important; animation-delay: 0ms !important; }
+  .t-toast__bar { animation: none !important; }
   .t-team__track { animation: none !important; width: auto; flex-wrap: wrap; row-gap: 12px; }
   .t-team__viewport { -webkit-mask-image: none; mask-image: none; }
   .t-member[aria-hidden="true"] { display: none; }

@@ -92,6 +92,48 @@ def test_paso1_exige_usuario_y_contrasena(make_user):
     assert "_login_pending" not in at.session_state
 
 
+def _toasts(at: AppTest) -> list[str]:
+    return [str(getattr(e, "proto", e)) for e in at.get("html") if "t-toast t-toast--" in str(getattr(e, "proto", e))]
+
+
+def test_errores_del_login_muestran_toast(make_user):
+    make_user()
+    at = _app()
+    assert _toasts(at) == []
+    at.button(key=LOGIN).click().run()
+    [toast] = _toasts(at)
+    assert "t-toast--error" in toast and "Escribe tu usuario y tu contraseña." in toast
+    at.run()  # cualquier otra ejecución lo retira
+    assert _toasts(at) == []
+    _credentials(at)
+    assert _toasts(at) == []  # el paso 1 correcto no avisa
+    _code(at, "000000")
+    [toast] = _toasts(at)
+    assert "No pudimos verificar tus datos" in toast
+
+
+def test_error_repetido_genera_un_toast_nuevo(make_user):
+    """El HTML cambia (data-n) para que la animación vuelva a empezar."""
+    at = _app()
+    at.button(key=LOGIN).click().run()
+    [first] = _toasts(at)
+    at.button(key=LOGIN).click().run()
+    [second] = _toasts(at)
+    assert first != second and 'data-n=\\"2' in second
+
+
+def test_errores_del_registro_muestran_toast(clean):
+    at = _app()
+    _to_register(at)
+    _account_step(at, username="x", email="mal")
+    [toast] = _toasts(at)
+    assert "Revisa los 2 campos marcados." in toast  # usuario y correo (no cuenta «vuelve a escribir»)
+    _account_step(at)
+    at.button(key=CREATE).click().run()  # paso 2 vacío
+    [toast] = _toasts(at)
+    assert "campos marcados." in toast
+
+
 def test_paso1_no_verifica_ni_cuenta_intentos(make_user, owner):
     """Una contraseña errónea también pasa al paso 2: el paso 1 no sirve para probar contraseñas."""
     ticket = make_user()
@@ -202,7 +244,9 @@ def _demo_step(at: AppTest) -> None:
         "reg_allergies": "", "reg_chronic_condition": "",
     }.items():
         at.text_input(key=key).input(value)
-    at.date_input(key="reg_birth_date").set_value(dt.date(1990, 1, 2))
+    at.selectbox(key="reg_birth_day").select(2)
+    at.selectbox(key="reg_birth_month").select(1)
+    at.selectbox(key="reg_birth_year").select(1990)
     at.selectbox(key="reg_blood_type").select("A+")
     at.number_input(key="reg_credit_score").set_value(640)
     at.number_input(key="reg_monthly_income").set_value(2_500_000.0)
@@ -292,6 +336,30 @@ def test_registro_puntaje_fuera_de_rango_muestra_el_error(clean, owner):
     assert "Entre 150 y 950." in _html(at)
     assert "Datos de demostración" in _html(at)  # sigue en el paso 2
     assert "_reg_account" in at.session_state
+    assert _accounts(owner) == 0
+
+
+def test_registro_nacimiento_llega_hasta_1900(clean):
+    """El año se elige de una lista completa: desde los 18 años hasta 1900."""
+    at = _app()
+    _to_register(at)
+    _account_step(at)
+    years = at.selectbox(key="reg_birth_year").options
+    assert years[0] == str(dt.date.today().year - 18)
+    assert years[-1] == "1900"
+    assert len(years) == dt.date.today().year - 18 - 1900 + 1
+
+
+def test_registro_fecha_imposible_muestra_el_error(clean, owner):
+    at = _app()
+    _to_register(at)
+    _account_step(at)
+    _demo_step(at)
+    at.selectbox(key="reg_birth_day").select(31)
+    at.selectbox(key="reg_birth_month").select(2)
+    at.button(key=CREATE).click().run()
+    assert not at.exception, at.exception
+    assert "Debe ser una fecha válida de una persona mayor de edad." in _html(at)
     assert _accounts(owner) == 0
 
 

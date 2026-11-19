@@ -4,7 +4,7 @@ Aplicación web de la entrega de Ciberseguridad, hecha con Streamlit y PostgreSQ
 
 Equipo: Nicolás Martínez, Laurence Santamaría, María José Barreto, Natali Alba y Daniel Camacho.
 
-> Los datos personales, de salud y de crédito son **académicos**. Escribe solo datos inventados o usa los generadores de datos ficticios de la app.
+> Los datos personales, de salud y de crédito son académicos. Escribe solo datos inventados o usa los generadores de datos ficticios de la app.
 
 ## Contenido
 
